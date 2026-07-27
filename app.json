@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "BookReader",
+    "slug": "bookreader-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yourcompany.bookreader"
+    },
+    "android": {
+      "package": "com.yourcompany.bookreader"
+    }
+  }
+}
