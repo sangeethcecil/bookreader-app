@@ -1,14 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  StyleSheet,
-  ActivityIndicator,
-  Dimensions,
-  Platform,
-  TouchableOpacity,
+  View, Text, Image, ScrollView, StyleSheet,
+  ActivityIndicator, Dimensions, Platform, TouchableOpacity,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 
@@ -21,33 +14,19 @@ export default function ReaderScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  useEffect(() => {
-    loadBook();
-  }, [bookId]);
+  useEffect(() => { loadBook(); }, [bookId]);
 
   async function loadBook() {
     const { data: bookData, error } = await supabase
-      .from('books')
-      .select('*')
-      .eq('id', bookId)
-      .single();
-
-    if (error) {
-      setError(error.message);
-      setLoading(false);
-      return;
-    }
+      .from('books').select('*').eq('id', bookId).single();
+    if (error) { setError(error.message); setLoading(false); return; }
     setBook(bookData);
-
     if (contentType === 'scanned') {
       const { data: pageData } = await supabase
-        .from('book_pages')
-        .select('page_number, image_url')
-        .eq('book_id', bookId)
-        .order('page_number', { ascending: true });
+        .from('book_pages').select('page_number, image_url')
+        .eq('book_id', bookId).order('page_number', { ascending: true });
       setPages(pageData ?? []);
     }
-
     setLoading(false);
   }
 
@@ -71,6 +50,22 @@ export default function ReaderScreen({ route, navigation }) {
     );
   }
 
+  // PDF — render in iframe/embed on web
+  if (contentType === 'pdf') {
+    if (Platform.OS === 'web') {
+      return (
+        <View style={styles.readerContainer}>
+          <iframe
+            src={book.file_url}
+            style={{ width: '100%', height: '100vh', border: 'none', display: 'block' }}
+            title={book.title}
+          />
+        </View>
+      );
+    }
+  }
+
+  // EPUB — render via epub.js
   if (contentType === 'epub') {
     if (Platform.OS === 'web') {
       return (
@@ -91,12 +86,8 @@ export default function ReaderScreen({ route, navigation }) {
     <ScrollView contentContainerStyle={styles.pagesContainer}>
       <Text style={styles.title}>{book.title}</Text>
       {pages.map((p) => (
-        <Image
-          key={p.page_number}
-          source={{ uri: p.image_url }}
-          style={[styles.pageImage, { width: width - 24 }]}
-          resizeMode="contain"
-        />
+        <Image key={p.page_number} source={{ uri: p.image_url }}
+          style={[styles.pageImage, { width: width - 24 }]} resizeMode="contain" />
       ))}
       {pages.length === 0 && <Text>No pages found for this book yet.</Text>}
     </ScrollView>
@@ -109,10 +100,9 @@ function buildEpubViewerHtml(epubUrl) {
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Book Reader</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #fff; font-family: Georgia, serif; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #fff; }
     #container { display: flex; flex-direction: column; height: 100vh; }
     #toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #f8f8f8; border-bottom: 1px solid #ddd; flex-shrink: 0; }
     #toolbar button { padding: 6px 16px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
@@ -134,104 +124,56 @@ function buildEpubViewerHtml(epubUrl) {
       <div id="loading">Loading book, please wait...</div>
     </div>
   </div>
-
   <script>
-    // Load JSZip first, then epub.js
     function loadScript(src, cb) {
       var s = document.createElement('script');
       s.src = src;
       s.onload = cb;
       s.onerror = function() {
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('viewer').innerHTML = '<div id="error">Failed to load reader library. Check your internet connection.</div>';
+        document.getElementById('viewer').innerHTML = '<div id="error">Failed to load reader. Check internet connection.</div>';
       };
       document.head.appendChild(s);
     }
-
     var book, rendition;
-
     function initReader() {
       try {
-        book = ePub("${epubUrl}", {
-          openAs: 'epub',
-          requestCredentials: false,
-          requestHeaders: {}
-        });
-
-        rendition = book.renderTo("viewer", {
-          width: "100%",
-          height: "100%",
-          spread: "none",
-          flow: "paginated"
-        });
-
+        book = ePub("${epubUrl}", { openAs: 'epub' });
+        rendition = book.renderTo("viewer", { width: "100%", height: "100%", spread: "none", flow: "paginated" });
         rendition.display().then(function() {
           document.getElementById('loading').style.display = 'none';
           updatePageInfo();
         }).catch(function(err) {
-          console.error('Display error:', err);
-          // Try flowing layout as fallback
-          rendition = book.renderTo("viewer", {
-            width: "100%",
-            height: "100%",
-            flow: "scrolled-doc"
-          });
+          rendition = book.renderTo("viewer", { width: "100%", height: "100%", flow: "scrolled-doc" });
           rendition.display().then(function() {
             document.getElementById('loading').style.display = 'none';
-            updatePageInfo();
           }).catch(function(err2) {
             document.getElementById('loading').style.display = 'none';
-            document.getElementById('viewer').innerHTML = '<div id="error">Could not render this book format.<br/>Error: ' + err2.message + '</div>';
+            document.getElementById('viewer').innerHTML = '<div id="error">Could not render this book.<br/>' + err2.message + '</div>';
           });
         });
-
-        book.ready.then(function() {
-          return book.locations.generate(1024);
-        }).then(function() {
-          updatePageInfo();
-        }).catch(function(e) {
-          console.warn('Location generation failed (non-fatal):', e);
-        });
-
-        rendition.on('relocated', function(location) {
-          updatePageInfo(location);
-        });
-
+        book.ready.then(function() { return book.locations.generate(1024); })
+          .then(function() { updatePageInfo(); }).catch(function(e) {});
+        rendition.on('relocated', function(location) { updatePageInfo(location); });
       } catch(e) {
         document.getElementById('loading').style.display = 'none';
-        document.getElementById('viewer').innerHTML = '<div id="error">Error loading book: ' + e.message + '</div>';
+        document.getElementById('viewer').innerHTML = '<div id="error">Error: ' + e.message + '</div>';
       }
     }
-
     function updatePageInfo(location) {
       var info = document.getElementById('pageInfo');
       if (location && location.start) {
-        var pct = Math.round(location.start.percentage * 100);
-        info.textContent = pct + '% complete';
-      } else {
-        info.textContent = 'Reading...';
-      }
+        info.textContent = Math.round(location.start.percentage * 100) + '% complete';
+      } else { info.textContent = 'Reading...'; }
     }
-
-    function prevPage() {
-      if (rendition) rendition.prev();
-    }
-
-    function nextPage() {
-      if (rendition) rendition.next();
-    }
-
-    // Keyboard navigation
+    function prevPage() { if (rendition) rendition.prev(); }
+    function nextPage() { if (rendition) rendition.next(); }
     document.addEventListener('keyup', function(e) {
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextPage();
       if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') prevPage();
     });
-
-    // Load libraries then init
     loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', function() {
-      loadScript('https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js', function() {
-        initReader();
-      });
+      loadScript('https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js', function() { initReader(); });
     });
   </script>
 </body>
