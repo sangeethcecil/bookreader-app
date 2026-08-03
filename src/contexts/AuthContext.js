@@ -5,46 +5,33 @@ const AuthContext = createContext(undefined);
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
-  const [profile, setProfile] = useState(null); // includes subscription/entitlement info
+  const [profile, setProfile] = useState(null);
+  const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get the existing session on app load
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setLoading(false);
-      }
+      if (session?.user) loadProfile(session.user.id);
+      else setLoading(false);
     });
 
-    // Listen for login/logout events
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      if (session?.user) {
-        loadProfile(session.user.id);
-      } else {
-        setProfile(null);
-        setLoading(false);
-      }
+      if (session?.user) loadProfile(session.user.id);
+      else { setProfile(null); setPurchases([]); setLoading(false); }
     });
 
     return () => listener.subscription.unsubscribe();
   }, []);
 
   async function loadProfile(userId) {
-    // Pulls subscription/entitlement status from our own table (set up in schema.sql)
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*, subscriptions(status, plan, current_period_end)')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.warn('Could not load profile:', error.message);
-    }
-    setProfile(data ?? null);
+    const [profileRes, purchasesRes] = await Promise.all([
+      supabase.from('profiles').select('*, subscriptions(status, plan, current_period_end)').eq('id', userId).single(),
+      supabase.from('purchases').select('*').eq('user_id', userId).eq('status', 'paid'),
+    ]);
+    setProfile(profileRes.data ?? null);
+    setPurchases(purchasesRes.data ?? []);
     setLoading(false);
   }
 
@@ -60,8 +47,6 @@ export function AuthProvider({ children }) {
     return supabase.auth.signOut();
   }
 
-  // True if the user has an active paid subscription right now.
-  // This is the single gate the rest of the app should check before showing locked content.
   function hasActiveSubscription() {
     const sub = profile?.subscriptions?.[0];
     if (!sub) return false;
@@ -70,15 +55,32 @@ export function AuthProvider({ children }) {
     return true;
   }
 
+  function hasPurchasedBook(bookId) {
+    const purchase = purchases.find(p => p.book_id === bookId);
+    if (!purchase) return false;
+    if (new Date(purchase.expires_at) < new Date()) return false;
+    return true;
+  }
+
+  function canReadBook(book) {
+    if (book.is_free) return true;
+    if (hasActiveSubscription()) return true;
+    if (hasPurchasedBook(book.id)) return true;
+    return false;
+  }
+
   const value = {
     session,
     user: session?.user ?? null,
     profile,
+    purchases,
     loading,
     signUp,
     signIn,
     signOut,
     hasActiveSubscription,
+    hasPurchasedBook,
+    canReadBook,
     refreshProfile: () => session?.user && loadProfile(session.user.id),
   };
 

@@ -3,12 +3,14 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View } from 'react-native';
 
+
 import { useAuth } from '../contexts/AuthContext';
 import LoginScreen from '../screens/LoginScreen';
 import LibraryScreen from '../screens/LibraryScreen';
 import ReaderScreen from '../screens/ReaderScreen';
 import SubscribeScreen from '../screens/SubscribeScreen';
 import AdminScreen from '../screens/AdminScreen';
+import CheckoutScreen from '../screens/CheckoutScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -52,6 +54,7 @@ export default function RootNavigator() {
               component={SubscribeScreen}
               options={{ headerShown: true, title: 'Subscribe' }}
             />
+            <Stack.Screen name="Checkout" component={CheckoutScreen} options={{ headerShown: true, title: 'Purchase Book' }} />
           </>
         )}
       </Stack.Navigator>
