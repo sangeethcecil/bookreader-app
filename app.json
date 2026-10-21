@@ -12,10 +12,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.yourcompany.bookreader"
+      "bundleIdentifier": "online.bookreader.app"
     },
     "android": {
-      "package": "com.yourcompany.bookreader"
+      "package": "online.bookreader.app"
     }
   }
 }

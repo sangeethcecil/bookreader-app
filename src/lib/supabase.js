@@ -7,8 +7,9 @@ import { Platform } from 'react-native';
 // On native (iOS/Android later), AsyncStorage is required for session persistence.
 const storage = Platform.OS === 'web' ? undefined : AsyncStorage;
 
-const supabaseUrl = 'https://alkmhitjxxjmmytlrsiw.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsa21oaXRqeHhqbW15dGxyc2l3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUwODMxNTEsImV4cCI6MjEwMDY1OTE1MX0.Q5ZNeL4T1BT8yvkWfJ3cDPT5scw40joAhSlKuc7YIcY';
+// Read from environment variables (Expo convention: EXPO_PUBLIC_* prefix)
+const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnonKey) {
   console.warn(
@@ -16,7 +17,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
   auth: {
     storage,
     autoRefreshToken: true,
